@@ -283,10 +283,8 @@ Proprietary - All rights reserved. See [LICENSE](LICENSE) for details.
 
 ## 📞 Support
 
-- **Email**: support@screener.kr
-- **Documentation**: https://docs.screener.kr
+- **Email**: kcenon@gmail.com
 - **Issue Tracker**: https://github.com/your-org/screener_system/issues
-- **Status Page**: https://status.screener.kr
 
 ## 🗺️ Roadmap
 

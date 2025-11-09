@@ -93,9 +93,21 @@ setup_docker() {
     # Generate Fernet key if not set
     if [ -z "$AIRFLOW_FERNET_KEY" ] || [ "$AIRFLOW_FERNET_KEY" = "your-fernet-key-here-generate-with-python-cryptography-fernet" ]; then
         log_info "Generating Airflow Fernet key..."
-        FERNET_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+
+        # Try Python cryptography module first
+        if python3 -c "from cryptography.fernet import Fernet" 2>/dev/null; then
+            FERNET_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+        else
+            # Fallback: Use Docker container to generate key
+            log_info "Using Docker container to generate Fernet key (cryptography module not installed on host)..."
+            FERNET_KEY=$(docker run --rm python:3.11-slim python -c "import subprocess; subprocess.check_call(['pip', 'install', '-q', 'cryptography']); from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+        fi
+
         log_info "Add this to your .env file:"
         echo "AIRFLOW_FERNET_KEY=$FERNET_KEY"
+        echo ""
+        log_warning "Script will continue, but you should add the key to .env for persistence"
+        echo ""
     fi
 
     # Create airflow_logs volume if it doesn't exist

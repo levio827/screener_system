@@ -148,6 +148,12 @@ services:
       _AIRFLOW_WWW_USER_CREATE: 'true'
       _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_USER:-admin}
       _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_PASSWORD:-admin}
+      # Screener database connection (for DAGs)
+      SCREENER_DB_HOST: ${SCREENER_DB_HOST:-postgres}
+      SCREENER_DB_PORT: ${SCREENER_DB_PORT:-5432}
+      SCREENER_DB_NAME: ${SCREENER_DB_NAME:-screener_db}
+      SCREENER_DB_USER: ${SCREENER_DB_USER:-screener_user}
+      SCREENER_DB_PASSWORD: ${SCREENER_DB_PASSWORD:-${DB_PASSWORD:-screener_password}}
     ports:
       - "${AIRFLOW_PORT:-8080}:8080"
     depends_on:
@@ -156,6 +162,7 @@ services:
     volumes:
       - ./data_pipeline/dags:/opt/airflow/dags
       - ./data_pipeline/plugins:/opt/airflow/plugins
+      - ./data_pipeline/config:/opt/airflow/config
       - airflow_logs:/opt/airflow/logs
     command: webserver
     healthcheck:
@@ -176,11 +183,18 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql://${DB_USER:-screener_user}:${DB_PASSWORD:-screener_password}@postgres:5432/airflow
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-your-fernet-key-here}
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      # Screener database connection (for DAGs)
+      SCREENER_DB_HOST: ${SCREENER_DB_HOST:-postgres}
+      SCREENER_DB_PORT: ${SCREENER_DB_PORT:-5432}
+      SCREENER_DB_NAME: ${SCREENER_DB_NAME:-screener_db}
+      SCREENER_DB_USER: ${SCREENER_DB_USER:-screener_user}
+      SCREENER_DB_PASSWORD: ${SCREENER_DB_PASSWORD:-${DB_PASSWORD:-screener_password}}
     depends_on:
       - airflow_webserver
     volumes:
       - ./data_pipeline/dags:/opt/airflow/dags
       - ./data_pipeline/plugins:/opt/airflow/plugins
+      - ./data_pipeline/config:/opt/airflow/config
       - airflow_logs:/opt/airflow/logs
     command: scheduler
     networks:

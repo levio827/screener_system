@@ -160,7 +160,17 @@ setup_docker() {
 
     # Set up database connections
     log_info "Setting up database connections..."
-    docker-compose exec -T airflow_webserver python /opt/airflow/dags/../config/setup_connections.py
+    docker-compose exec -T airflow_webserver python /opt/airflow/config/setup_connections.py || {
+        log_warning "Automated connection setup failed, using CLI method..."
+        docker-compose exec -T airflow_webserver airflow connections add screener_db \
+            --conn-type postgres \
+            --conn-host "${SCREENER_DB_HOST:-postgres}" \
+            --conn-port "${SCREENER_DB_PORT:-5432}" \
+            --conn-schema "${SCREENER_DB_NAME:-screener_db}" \
+            --conn-login "${SCREENER_DB_USER:-screener_user}" \
+            --conn-password "${SCREENER_DB_PASSWORD:-screener_password}"
+        log_success "Database connection added via CLI"
+    }
 
     # Print access information
     log_success "Airflow setup completed!"

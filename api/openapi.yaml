@@ -1,0 +1,1931 @@
+openapi: 3.0.3
+
+info:
+  title: Stock Screening Platform API
+  version: 1.0.0
+  description: |
+    RESTful API for the Stock Screening Platform - Comprehensive stock analysis and screening service for Korean markets (KOSPI/KOSDAQ).
+
+    ## Features
+    - **Stock Screening**: Filter 2,400+ stocks using 200+ indicators
+    - **Real-time Market Data**: Live prices and volume data
+    - **Portfolio Management**: Track holdings and performance
+    - **Alerts & Notifications**: Price and volume alerts
+    - **Financial Analysis**: Detailed financial statements and metrics
+
+    ## Authentication
+    Most endpoints require authentication via JWT bearer tokens.
+    Obtain a token by calling `POST /auth/login` with valid credentials.
+
+    ## Rate Limiting
+    - **Free tier**: 100 requests/minute
+    - **Basic tier**: 500 requests/minute
+    - **Pro tier**: 2000 requests/minute
+
+    ## Response Times
+    - Screening queries: < 500ms (p99)
+    - API endpoints: < 200ms (p95)
+
+  contact:
+    name: API Support
+    email: api@screener.kr
+    url: https://screener.kr/support
+
+  license:
+    name: Proprietary
+    url: https://screener.kr/terms
+
+servers:
+  - url: https://api.screener.kr/v1
+    description: Production server
+  - url: https://api-staging.screener.kr/v1
+    description: Staging server
+  - url: http://localhost:8000/v1
+    description: Local development server
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Stocks
+    description: Stock information and details
+  - name: Screening
+    description: Stock screening and filtering
+  - name: Market
+    description: Market overview and trends
+  - name: Portfolios
+    description: Portfolio management
+  - name: Alerts
+    description: Price and volume alerts
+  - name: Users
+    description: User profile and preferences
+  - name: Watchlists
+    description: Watchlist management
+
+# ============================================================================
+# SECURITY SCHEMES
+# ============================================================================
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT access token obtained from `/auth/login` endpoint.
+        Token expires after 15 minutes - use `/auth/refresh` to obtain new token.
+
+  # ==========================================================================
+  # REUSABLE SCHEMAS
+  # ==========================================================================
+
+  schemas:
+    # Common Responses
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code
+          example: INVALID_REQUEST
+        message:
+          type: string
+          description: Human-readable error message
+          example: Invalid request parameters
+        details:
+          type: object
+          description: Additional error details
+          additionalProperties: true
+
+    PaginationMeta:
+      type: object
+      required:
+        - page
+        - per_page
+        - total
+        - pages
+      properties:
+        page:
+          type: integer
+          description: Current page number (1-indexed)
+          example: 1
+        per_page:
+          type: integer
+          description: Number of items per page
+          example: 50
+        total:
+          type: integer
+          description: Total number of items
+          example: 1234
+        pages:
+          type: integer
+          description: Total number of pages
+          example: 25
+
+    # Authentication
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: password123
+
+    LoginResponse:
+      type: object
+      required:
+        - access_token
+        - refresh_token
+        - token_type
+        - expires_in
+        - user
+      properties:
+        access_token:
+          type: string
+          description: JWT access token (valid for 15 minutes)
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        refresh_token:
+          type: string
+          description: Refresh token (valid for 30 days)
+          example: a1b2c3d4e5f6...
+        token_type:
+          type: string
+          enum: [Bearer]
+          example: Bearer
+        expires_in:
+          type: integer
+          description: Token expiration time in seconds
+          example: 900
+        user:
+          $ref: '#/components/schemas/User'
+
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: Must contain at least 8 characters
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+
+    RefreshRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          description: Valid refresh token
+
+    # User
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - name
+        - subscription_tier
+        - created_at
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        name:
+          type: string
+          example: John Doe
+        subscription_tier:
+          type: string
+          enum: [free, basic, pro]
+          example: pro
+        email_verified:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: '2024-01-15T10:30:00Z'
+        last_login_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2024-11-09T14:25:00Z'
+
+    # Stock
+    Stock:
+      type: object
+      required:
+        - code
+        - name
+        - market
+      properties:
+        code:
+          type: string
+          pattern: '^\d{6}$'
+          description: 6-digit stock code
+          example: '005930'
+        name:
+          type: string
+          description: Stock name in Korean
+          example: 삼성전자
+        name_english:
+          type: string
+          nullable: true
+          example: Samsung Electronics
+        market:
+          type: string
+          enum: [KOSPI, KOSDAQ]
+          example: KOSPI
+        sector:
+          type: string
+          nullable: true
+          example: Technology
+        industry:
+          type: string
+          nullable: true
+          example: Semiconductors
+        listing_date:
+          type: string
+          format: date
+          nullable: true
+          example: '1975-06-11'
+        shares_outstanding:
+          type: integer
+          format: int64
+          nullable: true
+          example: 5969782550
+
+    StockDetail:
+      allOf:
+        - $ref: '#/components/schemas/Stock'
+        - type: object
+          properties:
+            current_price:
+              type: integer
+              description: Latest closing price
+              example: 70000
+            price_change_1d:
+              type: number
+              format: float
+              description: Price change percentage (1 day)
+              example: 2.5
+            volume:
+              type: integer
+              format: int64
+              example: 15000000
+            market_cap:
+              type: integer
+              format: int64
+              description: Market capitalization in KRW
+              example: 420000000000000
+            indicators:
+              $ref: '#/components/schemas/Indicators'
+
+    Indicators:
+      type: object
+      description: Calculated indicators (subset of 200+ available)
+      properties:
+        # Valuation
+        per:
+          type: number
+          format: float
+          nullable: true
+          example: 12.5
+        pbr:
+          type: number
+          format: float
+          nullable: true
+          example: 1.2
+        psr:
+          type: number
+          format: float
+          nullable: true
+          example: 1.8
+        dividend_yield:
+          type: number
+          format: float
+          nullable: true
+          description: Dividend yield percentage
+          example: 2.5
+        # Profitability
+        roe:
+          type: number
+          format: float
+          nullable: true
+          description: Return on Equity (%)
+          example: 15.2
+        roa:
+          type: number
+          format: float
+          nullable: true
+          description: Return on Assets (%)
+          example: 9.8
+        operating_margin:
+          type: number
+          format: float
+          nullable: true
+          example: 15.3
+        net_margin:
+          type: number
+          format: float
+          nullable: true
+          example: 12.7
+        # Growth
+        revenue_growth_yoy:
+          type: number
+          format: float
+          nullable: true
+          description: Revenue growth Year-over-Year (%)
+          example: 8.5
+        profit_growth_yoy:
+          type: number
+          format: float
+          nullable: true
+          example: 15.3
+        # Stability
+        debt_to_equity:
+          type: number
+          format: float
+          nullable: true
+          example: 33.3
+        current_ratio:
+          type: number
+          format: float
+          nullable: true
+          example: 2.1
+        piotroski_f_score:
+          type: integer
+          minimum: 0
+          maximum: 9
+          nullable: true
+          description: Financial strength score (0-9)
+          example: 8
+        # Composite Scores
+        quality_score:
+          type: integer
+          minimum: 1
+          maximum: 100
+          nullable: true
+          example: 85
+        value_score:
+          type: integer
+          minimum: 1
+          maximum: 100
+          nullable: true
+          example: 75
+        growth_score:
+          type: integer
+          minimum: 1
+          maximum: 100
+          nullable: true
+          example: 70
+        overall_score:
+          type: integer
+          minimum: 1
+          maximum: 100
+          nullable: true
+          example: 80
+
+    # Price Data
+    PriceData:
+      type: object
+      required:
+        - date
+        - open
+        - high
+        - low
+        - close
+        - volume
+      properties:
+        date:
+          type: string
+          format: date
+          example: '2024-11-09'
+        open:
+          type: integer
+          example: 69500
+        high:
+          type: integer
+          example: 71000
+        low:
+          type: integer
+          example: 69000
+        close:
+          type: integer
+          example: 70500
+        volume:
+          type: integer
+          format: int64
+          example: 15234567
+
+    # Financial Statements
+    FinancialStatement:
+      type: object
+      required:
+        - period_type
+        - fiscal_year
+        - report_date
+      properties:
+        period_type:
+          type: string
+          enum: [quarterly, annual]
+        fiscal_year:
+          type: integer
+          example: 2024
+        fiscal_quarter:
+          type: integer
+          minimum: 1
+          maximum: 4
+          nullable: true
+          example: 3
+        report_date:
+          type: string
+          format: date
+          example: '2024-10-31'
+        revenue:
+          type: integer
+          format: int64
+          nullable: true
+          example: 79107000000000
+        operating_profit:
+          type: integer
+          format: int64
+          nullable: true
+          example: 13519000000000
+        net_profit:
+          type: integer
+          format: int64
+          nullable: true
+          example: 10062000000000
+        total_assets:
+          type: integer
+          format: int64
+          nullable: true
+          example: 465872000000000
+        total_liabilities:
+          type: integer
+          format: int64
+          nullable: true
+          example: 116404000000000
+        equity:
+          type: integer
+          format: int64
+          nullable: true
+          example: 349468000000000
+        operating_cash_flow:
+          type: integer
+          format: int64
+          nullable: true
+          example: 23000000000000
+        free_cash_flow:
+          type: integer
+          format: int64
+          nullable: true
+          example: 15000000000000
+
+    # Screening
+    ScreeningRequest:
+      type: object
+      properties:
+        market:
+          type: string
+          enum: [KOSPI, KOSDAQ, ALL]
+          default: ALL
+          description: Market filter
+        filters:
+          type: object
+          description: Filtering criteria (key-value pairs)
+          additionalProperties: true
+          example:
+            per:
+              max: 15
+            pbr:
+              max: 1.5
+            roe:
+              min: 10
+            dividend_yield:
+              min: 3.0
+        sort_by:
+          type: string
+          default: market_cap
+          description: Field to sort by
+          example: per
+        order:
+          type: string
+          enum: [asc, desc]
+          default: desc
+          example: asc
+        page:
+          type: integer
+          minimum: 1
+          default: 1
+        per_page:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+
+    ScreeningResponse:
+      type: object
+      required:
+        - stocks
+        - meta
+        - query_time_ms
+      properties:
+        stocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockDetail'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        query_time_ms:
+          type: integer
+          description: Query execution time in milliseconds
+          example: 234
+
+    ScreeningTemplate:
+      type: object
+      required:
+        - id
+        - name
+        - category
+        - filter_config
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: High Dividend Stocks
+        description:
+          type: string
+          nullable: true
+          example: Stocks with dividend yield > 3% and stable financials
+        category:
+          type: string
+          example: dividend
+        filter_config:
+          type: object
+          description: Filter configuration as JSON
+          additionalProperties: true
+        is_public:
+          type: boolean
+          example: true
+        usage_count:
+          type: integer
+          example: 1523
+
+    # Market
+    MarketOverview:
+      type: object
+      required:
+        - kospi
+        - kosdaq
+        - timestamp
+      properties:
+        kospi:
+          $ref: '#/components/schemas/MarketStats'
+        kosdaq:
+          $ref: '#/components/schemas/MarketStats'
+        timestamp:
+          type: string
+          format: date-time
+          example: '2024-11-09T15:30:00Z'
+
+    MarketStats:
+      type: object
+      required:
+        - total_stocks
+        - avg_price_change
+        - total_volume
+        - advancers
+        - decliners
+        - unchanged
+      properties:
+        total_stocks:
+          type: integer
+          example: 923
+        avg_price_change:
+          type: number
+          format: float
+          description: Average price change percentage
+          example: 0.52
+        total_volume:
+          type: integer
+          format: int64
+          example: 458923456
+        advancers:
+          type: integer
+          description: Number of stocks with price increase
+          example: 523
+        decliners:
+          type: integer
+          example: 350
+        unchanged:
+          type: integer
+          example: 50
+
+    HotStock:
+      type: object
+      required:
+        - stock_code
+        - stock_name
+        - volume_surge_pct
+        - price_change_pct
+        - current_price
+      properties:
+        stock_code:
+          type: string
+          example: '005930'
+        stock_name:
+          type: string
+          example: 삼성전자
+        current_volume:
+          type: integer
+          format: int64
+          example: 25000000
+        avg_volume:
+          type: integer
+          format: int64
+          description: 20-day average volume
+          example: 12000000
+        volume_surge_pct:
+          type: number
+          format: float
+          description: Volume increase percentage vs 20-day average
+          example: 208.33
+        price_change_pct:
+          type: number
+          format: float
+          example: 5.2
+        current_price:
+          type: integer
+          example: 71500
+
+    # Portfolio
+    Portfolio:
+      type: object
+      required:
+        - id
+        - name
+        - created_at
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Growth Portfolio
+        description:
+          type: string
+          nullable: true
+          example: High-growth tech stocks
+        is_default:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PortfolioDetail:
+      allOf:
+        - $ref: '#/components/schemas/Portfolio'
+        - type: object
+          required:
+            - holdings
+            - total_value
+            - total_cost
+            - total_gain
+            - gain_percentage
+          properties:
+            holdings:
+              type: array
+              items:
+                $ref: '#/components/schemas/Holding'
+            total_value:
+              type: number
+              format: float
+              description: Current total value
+              example: 10250000
+            total_cost:
+              type: number
+              format: float
+              description: Total purchase cost
+              example: 9500000
+            total_gain:
+              type: number
+              format: float
+              description: Unrealized gain/loss
+              example: 750000
+            gain_percentage:
+              type: number
+              format: float
+              example: 7.89
+
+    Holding:
+      type: object
+      required:
+        - stock_code
+        - stock_name
+        - quantity
+        - avg_price
+        - current_price
+      properties:
+        id:
+          type: integer
+          example: 1
+        stock_code:
+          type: string
+          example: '005930'
+        stock_name:
+          type: string
+          example: 삼성전자
+        quantity:
+          type: integer
+          example: 10
+        avg_price:
+          type: number
+          format: float
+          description: Average purchase price
+          example: 68000
+        current_price:
+          type: number
+          format: float
+          example: 70500
+        purchase_date:
+          type: string
+          format: date
+          nullable: true
+          example: '2024-09-10'
+        gain_loss:
+          type: number
+          format: float
+          description: Unrealized gain/loss
+          example: 25000
+        gain_loss_pct:
+          type: number
+          format: float
+          example: 3.68
+        notes:
+          type: string
+          nullable: true
+
+    CreateHoldingRequest:
+      type: object
+      required:
+        - stock_code
+        - quantity
+        - avg_price
+      properties:
+        stock_code:
+          type: string
+          pattern: '^\d{6}$'
+        quantity:
+          type: integer
+          minimum: 1
+        avg_price:
+          type: number
+          format: float
+          minimum: 0
+        purchase_date:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    # Alert
+    Alert:
+      type: object
+      required:
+        - id
+        - stock_code
+        - alert_type
+        - condition
+        - threshold_value
+        - is_active
+      properties:
+        id:
+          type: integer
+          example: 1
+        stock_code:
+          type: string
+          example: '005930'
+        stock_name:
+          type: string
+          description: Populated from stocks table
+          example: 삼성전자
+        alert_type:
+          type: string
+          enum: [price, volume, indicator]
+          example: price
+        condition:
+          type: string
+          enum: [above, below, equals, crosses_above, crosses_below]
+          example: above
+        threshold_value:
+          type: number
+          format: float
+          example: 75000
+        indicator_name:
+          type: string
+          nullable: true
+          description: Required if alert_type is 'indicator'
+          example: rsi_14d
+        notify_via:
+          type: array
+          items:
+            type: string
+            enum: [email, push, sms]
+          example: [email, push]
+        is_active:
+          type: boolean
+          example: true
+        triggered_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    CreateAlertRequest:
+      type: object
+      required:
+        - stock_code
+        - alert_type
+        - condition
+        - threshold_value
+      properties:
+        stock_code:
+          type: string
+          pattern: '^\d{6}$'
+        alert_type:
+          type: string
+          enum: [price, volume, indicator]
+        condition:
+          type: string
+          enum: [above, below, equals, crosses_above, crosses_below]
+        threshold_value:
+          type: number
+          format: float
+        indicator_name:
+          type: string
+          nullable: true
+        notify_via:
+          type: array
+          items:
+            type: string
+            enum: [email, push, sms]
+          default: [email]
+
+    # Watchlist
+    Watchlist:
+      type: object
+      required:
+        - id
+        - name
+        - created_at
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    WatchlistDetail:
+      allOf:
+        - $ref: '#/components/schemas/Watchlist'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/WatchlistItem'
+
+    WatchlistItem:
+      type: object
+      required:
+        - stock_code
+        - stock_name
+        - added_at
+      properties:
+        id:
+          type: integer
+        stock_code:
+          type: string
+        stock_name:
+          type: string
+        current_price:
+          type: integer
+          nullable: true
+        price_change_1d:
+          type: number
+          format: float
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        added_at:
+          type: string
+          format: date-time
+
+# ============================================================================
+# API PATHS
+# ============================================================================
+
+paths:
+  # ==========================================================================
+  # AUTHENTICATION
+  # ==========================================================================
+
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register a new user
+      description: Create a new user account with email and password
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Invalid request (e.g., weak password, invalid email)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Login with email and password
+      description: Authenticate user and receive JWT tokens
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh access token
+      description: Exchange refresh token for new access token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                  expires_in:
+                    type: integer
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Logout (revoke refresh token)
+      description: Invalidate refresh token to log out user
+      operationId: logoutUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Logged out successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  # ==========================================================================
+  # STOCKS
+  # ==========================================================================
+
+  /stocks:
+    get:
+      tags: [Stocks]
+      summary: List all stocks
+      description: Get paginated list of all stocks with basic information
+      operationId: listStocks
+      parameters:
+        - name: market
+          in: query
+          schema:
+            type: string
+            enum: [KOSPI, KOSDAQ, ALL]
+            default: ALL
+        - name: sector
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stocks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Stock'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /stocks/{stock_code}:
+    get:
+      tags: [Stocks]
+      summary: Get stock details
+      description: Retrieve detailed information for a specific stock
+      operationId: getStockDetail
+      parameters:
+        - name: stock_code
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{6}$'
+          description: 6-digit stock code
+          example: '005930'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockDetail'
+        '404':
+          description: Stock not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /stocks/{stock_code}/prices:
+    get:
+      tags: [Stocks]
+      summary: Get historical prices
+      description: Retrieve historical price data (OHLCV) for a stock
+      operationId: getStockPrices
+      parameters:
+        - name: stock_code
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{6}$'
+        - name: from_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: '2024-01-01'
+        - name: to_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: '2024-12-31'
+        - name: interval
+          in: query
+          schema:
+            type: string
+            enum: [daily, weekly, monthly]
+            default: daily
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stock_code:
+                    type: string
+                  prices:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PriceData'
+        '404':
+          description: Stock not found
+
+  /stocks/{stock_code}/financials:
+    get:
+      tags: [Stocks]
+      summary: Get financial statements
+      description: Retrieve financial statements (income statement, balance sheet, cash flow)
+      operationId: getFinancials
+      parameters:
+        - name: stock_code
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: period_type
+          in: query
+          schema:
+            type: string
+            enum: [quarterly, annual]
+            default: quarterly
+        - name: years
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10
+            default: 5
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stock_code:
+                    type: string
+                  statements:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FinancialStatement'
+
+  # ==========================================================================
+  # SCREENING
+  # ==========================================================================
+
+  /screen:
+    post:
+      tags: [Screening]
+      summary: Screen stocks with filters
+      description: |
+        Filter stocks using custom criteria across 200+ indicators.
+        Returns matching stocks sorted by specified field.
+      operationId: screenStocks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScreeningRequest'
+            example:
+              market: KOSPI
+              filters:
+                per:
+                  max: 15
+                pbr:
+                  max: 1.5
+                roe:
+                  min: 10
+                dividend_yield:
+                  min: 3.0
+              sort_by: dividend_yield
+              order: desc
+              page: 1
+              per_page: 50
+      responses:
+        '200':
+          description: Screening results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScreeningResponse'
+        '400':
+          description: Invalid filters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /screen/templates:
+    get:
+      tags: [Screening]
+      summary: List screening templates
+      description: Get pre-built screening templates (e.g., High Dividend, Value, Growth)
+      operationId: listTemplates
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [dividend, value, growth, quality, momentum]
+      responses:
+        '200':
+          description: List of templates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  templates:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ScreeningTemplate'
+
+  /screen/templates/{template_id}:
+    get:
+      tags: [Screening]
+      summary: Get template details
+      description: Retrieve a specific screening template
+      operationId: getTemplate
+      parameters:
+        - name: template_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Template details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScreeningTemplate'
+        '404':
+          description: Template not found
+
+  # ==========================================================================
+  # MARKET
+  # ==========================================================================
+
+  /market/overview:
+    get:
+      tags: [Market]
+      summary: Get market overview
+      description: Retrieve current market statistics for KOSPI and KOSDAQ
+      operationId: getMarketOverview
+      responses:
+        '200':
+          description: Market overview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketOverview'
+
+  /market/hot-stocks:
+    get:
+      tags: [Market]
+      summary: Get hot stocks
+      description: Retrieve stocks with significant volume surge (real-time detection)
+      operationId: getHotStocks
+      parameters:
+        - name: min_surge_pct
+          in: query
+          schema:
+            type: number
+            format: float
+            default: 150
+          description: Minimum volume surge percentage vs 20-day average
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Hot stocks list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hot_stocks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HotStock'
+                  updated_at:
+                    type: string
+                    format: date-time
+
+  /market/movers:
+    get:
+      tags: [Market]
+      summary: Get top movers
+      description: Get top gainers or losers for a specified period
+      operationId: getTopMovers
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [gainers, losers]
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: ['1d', '1w', '1m', '3m', '6m', '1y']
+            default: '1d'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Top movers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  movers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        rank:
+                          type: integer
+                        stock_code:
+                          type: string
+                        stock_name:
+                          type: string
+                        price_change_pct:
+                          type: number
+                          format: float
+                        current_price:
+                          type: integer
+
+  # ==========================================================================
+  # PORTFOLIOS (Requires Authentication)
+  # ==========================================================================
+
+  /portfolios:
+    get:
+      tags: [Portfolios]
+      summary: List user portfolios
+      description: Get all portfolios for authenticated user
+      operationId: listPortfolios
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User portfolios
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  portfolios:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Portfolio'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags: [Portfolios]
+      summary: Create portfolio
+      description: Create a new portfolio
+      operationId: createPortfolio
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: My Portfolio
+                description:
+                  type: string
+                  nullable: true
+      responses:
+        '201':
+          description: Portfolio created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Portfolio'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /portfolios/{portfolio_id}:
+    get:
+      tags: [Portfolios]
+      summary: Get portfolio details
+      description: Retrieve portfolio with holdings and performance
+      operationId: getPortfolio
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: portfolio_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Portfolio details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioDetail'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Portfolio not found
+
+    delete:
+      tags: [Portfolios]
+      summary: Delete portfolio
+      description: Delete a portfolio and all its holdings
+      operationId: deletePortfolio
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: portfolio_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Portfolio deleted
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Portfolio not found
+
+  /portfolios/{portfolio_id}/holdings:
+    post:
+      tags: [Portfolios]
+      summary: Add holding
+      description: Add a new stock holding to portfolio
+      operationId: addHolding
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: portfolio_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateHoldingRequest'
+      responses:
+        '201':
+          description: Holding added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Holding'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /portfolios/{portfolio_id}/holdings/{holding_id}:
+    delete:
+      tags: [Portfolios]
+      summary: Remove holding
+      description: Remove a holding from portfolio
+      operationId: deleteHolding
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: portfolio_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: holding_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Holding removed
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Holding not found
+
+  # ==========================================================================
+  # ALERTS (Requires Authentication)
+  # ==========================================================================
+
+  /alerts:
+    get:
+      tags: [Alerts]
+      summary: List user alerts
+      description: Get all alerts for authenticated user
+      operationId: listAlerts
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: User alerts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Alert'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags: [Alerts]
+      summary: Create alert
+      description: Create a new price/volume/indicator alert
+      operationId: createAlert
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAlertRequest'
+      responses:
+        '201':
+          description: Alert created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Alert limit exceeded (based on subscription tier)
+
+  /alerts/{alert_id}:
+    delete:
+      tags: [Alerts]
+      summary: Delete alert
+      description: Delete an alert
+      operationId: deleteAlert
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: alert_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Alert deleted
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Alert not found
+
+  # ==========================================================================
+  # USERS (Requires Authentication)
+  # ==========================================================================
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get current user
+      description: Retrieve authenticated user's profile
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    patch:
+      tags: [Users]
+      summary: Update user profile
+      description: Update name, email, or password
+      operationId: updateUser
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  # ==========================================================================
+  # WATCHLISTS (Requires Authentication)
+  # ==========================================================================
+
+  /watchlists:
+    get:
+      tags: [Watchlists]
+      summary: List watchlists
+      description: Get all watchlists for authenticated user
+      operationId: listWatchlists
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User watchlists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  watchlists:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Watchlist'
+
+    post:
+      tags: [Watchlists]
+      summary: Create watchlist
+      description: Create a new watchlist
+      operationId: createWatchlist
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+      responses:
+        '201':
+          description: Watchlist created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Watchlist'
+
+  /watchlists/{watchlist_id}:
+    get:
+      tags: [Watchlists]
+      summary: Get watchlist details
+      description: Retrieve watchlist with stocks
+      operationId: getWatchlist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: watchlist_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Watchlist details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WatchlistDetail'
+
+  /watchlists/{watchlist_id}/items:
+    post:
+      tags: [Watchlists]
+      summary: Add stock to watchlist
+      description: Add a stock to watchlist
+      operationId: addToWatchlist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: watchlist_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - stock_code
+              properties:
+                stock_code:
+                  type: string
+                  pattern: '^\d{6}$'
+                notes:
+                  type: string
+                  nullable: true
+      responses:
+        '201':
+          description: Stock added to watchlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WatchlistItem'
+
+  /watchlists/{watchlist_id}/items/{item_id}:
+    delete:
+      tags: [Watchlists]
+      summary: Remove stock from watchlist
+      description: Remove a stock from watchlist
+      operationId: removeFromWatchlist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: watchlist_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: item_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Stock removed from watchlist
+
+# ============================================================================
+# REUSABLE RESPONSES
+# ============================================================================
+
+  responses:
+    UnauthorizedError:
+      description: Authentication required or token expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: UNAUTHORIZED
+            message: Invalid or expired token
+
+    ForbiddenError:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: FORBIDDEN
+            message: Upgrade to Pro tier to access this feature
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: NOT_FOUND
+            message: Resource not found
+
+    ValidationError:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: VALIDATION_ERROR
+            message: Invalid request parameters
+            details:
+              per:
+                - must be greater than 0

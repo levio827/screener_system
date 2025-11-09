@@ -764,6 +764,29 @@ The Stock Screening Platform is a new, self-contained web application that integ
 - **Outputs**: Data quality report
 - **Error Handling**: Alert if quality below threshold
 
+**REQ-DATA-005: Real-time Data Source Integration**
+- **Description**: System shall integrate with Korea Investment & Securities (KIS) API for real-time market data
+- **Priority**: Critical
+- **Data Sources**:
+  - Primary: KIS API (한국투자증권 Open API)
+  - Fallback: KRX Public Data Portal
+  - Development: Mock data source
+- **Data Types**:
+  - Current prices (현재가) - 3-5 second delay
+  - Order book (호가) - 10-level bid/ask depth
+  - Historical chart data (OHLCV)
+  - Stock information
+- **Authentication**: OAuth 2.0 with automatic token refresh
+- **Rate Limiting**: Maximum 20 requests/second (KIS API limit)
+- **Caching**: Redis cache with TTL (prices: 30min, order book: 10sec)
+- **Error Handling**:
+  - Circuit breaker on repeated failures (threshold: 5)
+  - Automatic fallback to cached data
+  - Retry with exponential backoff
+  - Alert on authentication failures
+- **Performance**: API latency < 200ms (p95)
+- **Reliability**: 99.9% success rate during market hours
+
 ---
 
 ## 4. External Interface Requirements
@@ -833,6 +856,35 @@ The Stock Screening Platform is a new, self-contained web application that integ
   - Neutral: #6b7280 (Gray)
 - **Dark Mode**: Optional (Phase 2+)
 
+**UI-007: Order Book Display (호가)**
+- **Description**: Real-time order book visualization showing 10-level bid/ask depth
+- **Layout**: Two-column grid (Ask levels on top, Bid levels on bottom)
+- **Components**:
+  - 10 ask levels (매도 호가) - price, volume, total volume
+  - 10 bid levels (매수 호가) - price, volume, total volume
+  - Price spread indicator (best_ask - best_bid)
+  - Spread percentage display
+  - Mid-price calculation
+  - Volume visualization bars (horizontal bars showing relative volume)
+  - Buy/sell pressure indicator (cumulative volume ratio)
+  - Last update timestamp
+- **Interactions**:
+  - Real-time WebSocket updates (< 100ms latency)
+  - Flash animation on price changes (highlight changed rows)
+  - Freeze/unfreeze button to pause updates
+  - Click price level to populate order entry (Phase 2+)
+  - Hover tooltips explaining bid/ask concepts
+- **Color Coding**:
+  - Ask levels: Red (#ef4444) background
+  - Bid levels: Blue (#2563eb) background
+  - Best bid/ask: Highlighted with border
+- **Responsive Behavior**:
+  - Desktop: Show full 10-level depth
+  - Tablet: Show 5-level depth
+  - Mobile: Show best bid/ask only with expandable full view
+- **Performance**: Smooth animations even with 100+ updates/second
+- **Accessibility**: Screen reader announces price changes for important levels
+
 ### 4.2 Hardware Interfaces
 
 Not applicable (web-based application, no direct hardware interfaces)
@@ -891,6 +943,45 @@ Not applicable (web-based application, no direct hardware interfaces)
   - Fetch user profile
 - **Error Handling**: Display user-friendly error messages
 
+**SI-006: KIS API Interface (Korea Investment & Securities)**
+- **Interface Type**: RESTful HTTP API
+- **Protocol**: HTTPS
+- **Base URL**: https://openapi.koreainvestment.com:9443 (production)
+- **Authentication**: OAuth 2.0 with automatic token refresh
+  - Access token expiry: 24 hours
+  - Refresh token: Auto-refresh before expiration
+  - Token storage: Secure encrypted storage
+- **Data Format**: JSON
+- **Operations**:
+  - `POST /oauth2/tokenP`: Get OAuth access token
+  - `GET /uapi/domestic-stock/v1/quotations/inquire-price`: Current price (현재가)
+  - `GET /uapi/domestic-stock/v1/quotations/inquire-asking-price-exp-ccn`: Order book (호가)
+  - `GET /uapi/domestic-stock/v1/quotations/inquire-daily-price`: Historical OHLCV
+  - `GET /uapi/domestic-stock/v1/quotations/search-stock-info`: Stock information
+- **Rate Limiting**:
+  - Maximum 20 requests/second (API limit)
+  - Request queue with priority (real-time > batch)
+  - Token bucket algorithm for smooth rate limiting
+- **Error Handling**:
+  - Circuit breaker pattern (CLOSED → OPEN → HALF_OPEN)
+  - Circuit opens after 5 consecutive failures
+  - Half-open test after 60 seconds
+  - Exponential backoff: 1s, 2s, 4s, 8s
+  - Fallback to cached data when circuit open
+  - Alert on authentication failures
+- **Caching Strategy**:
+  - Current prices: 30 minutes TTL
+  - Order book: 10 seconds TTL
+  - Stock info: 24 hours TTL
+  - 80%+ cache hit rate target
+- **Connection Pooling**:
+  - Keep-alive connections
+  - Connection pool size: 10-20 connections
+  - Connection timeout: 5 seconds
+  - Read timeout: 10 seconds
+- **Data Latency**: 3-5 seconds delay from real-time (API characteristic)
+- **Reliability Target**: 99.9% success rate during market hours (09:00-15:30 KST)
+
 ### 4.4 Communications Interfaces
 
 **CI-001: HTTP/HTTPS Protocol**
@@ -898,12 +989,39 @@ Not applicable (web-based application, no direct hardware interfaces)
 - **Ports**: 80 (HTTP, redirect to HTTPS), 443 (HTTPS)
 - **Compression**: gzip or brotli for API responses
 
-**CI-002: WebSocket Protocol (Optional Phase 2)**
-- **Purpose**: Real-time price updates during market hours
-- **Protocol**: WSS (WebSocket Secure)
+**CI-002: WebSocket Protocol**
+- **Purpose**: Real-time price and order book updates during market hours
+- **Protocol**: WSS (WebSocket Secure over TLS 1.3)
 - **Port**: 443
-- **Message Format**: JSON
-- **Heartbeat**: Ping/pong every 30 seconds
+- **Message Format**: JSON with gzip compression
+- **Connection Management**:
+  - Heartbeat: Ping/pong every 30 seconds
+  - Connection timeout: 30 seconds idle
+  - Automatic reconnection with exponential backoff
+  - JWT authentication in handshake
+- **Subscription System**:
+  - Room-based subscriptions (stock code, market, sector)
+  - Multiple subscriptions per connection
+  - Subscribe/unsubscribe messages
+  - Only receive subscribed updates
+- **Message Types**:
+  - `price_update`: Current price changes
+  - `orderbook_update`: Order book (호가) changes
+  - `market_status`: Market open/close events
+  - `alert`: User alert notifications
+  - `error`: Error messages
+- **Message Structure**:
+  - Event type field
+  - Timestamp (ISO 8601 format)
+  - Sequence number (for ordering)
+  - Data payload (event-specific)
+- **Performance**:
+  - Message latency: < 100ms (p99)
+  - Support 10,000+ concurrent connections
+  - Message batching: 10-50ms window
+  - Delivery rate: 99.9%
+- **Scalability**: Redis Pub/Sub for multi-instance broadcasting
+- **Rate Limiting**: 100 messages/second per connection
 
 **CI-003: Database Protocol**
 - **Protocol**: PostgreSQL wire protocol
@@ -1029,6 +1147,21 @@ Not applicable (web-based application, no direct hardware interfaces)
 - **Requirement**: Redis cache hit rate > 80%
 - **Measurement**: Redis INFO stats
 - **Rationale**: Reduce database load and improve response time
+
+**PERF-008: Rate Limiting**
+- **Requirement**: Enforce tiered rate limits without performance degradation
+  - Free tier: 100 requests/hour
+  - Basic tier: 1000 requests/hour
+  - Premium tier: 10000 requests/hour
+- **Measurement**: Rate limiter overhead < 5ms per request
+- **Rationale**: Protect API from abuse while maintaining performance
+
+**PERF-009: WebSocket Real-time Updates**
+- **Requirement**: WebSocket message latency < 100ms (p99)
+- **Concurrent Connections**: Support 10,000+ simultaneous WebSocket connections
+- **Message Delivery**: 99.9% message delivery rate
+- **Measurement**: WebSocket latency monitoring, connection count metrics
+- **Rationale**: Enable true real-time user experience for stock price updates
 
 ### 6.2 Safety Requirements
 

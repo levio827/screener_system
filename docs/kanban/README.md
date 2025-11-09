@@ -46,36 +46,60 @@ Each ticket follows this structure:
 - **Progress**: Percentage complete
 - **Notes**: Additional context
 
-## Current Sprint Tickets (MVP - Phase 1)
+## Current Ticket Distribution
 
-### Sprint 1 (Weeks 1-2) - Foundation
-**Critical Path:**
-1. DB-001 → DB-002 → DB-003 → DB-004 (Database setup)
-2. BE-001 → BE-002 (Backend foundation + Auth)
-3. FE-001 → FE-002 (Frontend foundation + Auth)
-4. INFRA-001 (Docker Compose)
-5. DP-001 (Airflow setup)
+### Todo (Sprint 1 - Weeks 1-2) - Foundation
+**14 tickets ready to start:**
 
-**Goal**: Development environment ready, authentication working
+**Database (4):**
+- DB-001: PostgreSQL + TimescaleDB Environment Setup (Critical)
+- DB-002: Database Schema Migration Implementation (Critical)
+- DB-003: Indexes and Materialized Views Creation (High)
+- DB-004: Database Functions and Triggers Implementation (Medium)
 
-### Sprint 2 (Weeks 3-4) - Core Features
-**Critical Path:**
-1. BE-003 → BE-004 (Stock API + Screening API)
-2. FE-003 → FE-004 (Screener page + Stock detail page)
-3. DP-002 → DP-003 (Price ingestion + Indicator calculation)
-4. INFRA-002 (CI/CD)
+**Backend (4):**
+- BE-001: FastAPI Project Initial Setup (Critical)
+- BE-002: User Authentication API Implementation (Critical)
+- BE-003: Stock Data API Implementation (Critical)
+- BE-004: Stock Screening API Implementation (Critical)
 
-**Goal**: Core screening functionality working end-to-end
+**Frontend (3):**
+- FE-001: React + Vite Project Setup (Critical)
+- FE-002: User Authentication UI Implementation (Critical)
+- FE-003: Stock Screener Page Implementation (Critical)
 
-### Sprint 3 (Weeks 5-6) - Polish & Launch
-**Critical Path:**
-1. Remaining features (Portfolio, Alerts)
-2. Testing and bug fixes
-3. INFRA-003 (Monitoring)
-4. Documentation
-5. Performance optimization
+**Data Pipeline (2):**
+- DP-001: Apache Airflow Environment Setup (High)
+- DP-002: Daily Price Ingestion DAG Implementation (Critical)
 
-**Goal**: MVP ready for launch
+**Infrastructure (1):**
+- INFRA-001: Docker Compose Multi-Container Setup (High)
+
+**Goal**: Development environment ready, authentication working, basic screening operational
+
+### Backlog (Sprint 2+ - Weeks 3+) - Advanced Features
+**9 tickets for future sprints:**
+
+**Backend (2):**
+- BE-005: API Rate Limiting and Throttling (Sprint 2, High)
+- BE-006: WebSocket Real-time Price Streaming (Sprint 2-3, High)
+
+**Database (1):**
+- DB-005: Order Book Schema and Storage (Sprint 2, Medium)
+
+**Data Pipeline (2):**
+- DP-003: Indicator Calculation DAG Implementation (Sprint 2, Critical)
+- DP-004: KIS API Integration (Sprint 2, Critical)
+
+**Frontend (2):**
+- FE-004: Stock Detail Page Implementation (Sprint 2, High)
+- FE-005: Order Book Visualization Component (Sprint 2-3, Medium)
+
+**Infrastructure (2):**
+- INFRA-002: CI/CD Pipeline with GitHub Actions (Sprint 2, High)
+- INFRA-003: Production Monitoring and Logging Setup (Sprint 2-3, Medium)
+
+**Goal**: Real-time features, advanced visualization, production readiness
 
 ## Workflow
 

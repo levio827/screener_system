@@ -1,7 +1,7 @@
 # [BUGFIX-005] Add Seed Data for Development and Testing
 
 ## Metadata
-- **Status**: REVIEW
+- **Status**: DONE
 - **Priority**: Medium
 - **Assignee**: AI Assistant
 - **Estimated Time**: 4 hours
@@ -22,37 +22,37 @@ The database tables are empty, preventing frontend and API integration testing. 
 - All other tables: 0 rows
 
 ## Subtasks
-- [ ] Create seed data SQL script
-  - [ ] 100 stocks from KOSPI (삼성전자, SK하이닉스, etc.)
-  - [ ] 50 stocks from KOSDAQ (카카오, 네이버, etc.)
-  - [ ] Historical daily_prices (last 252 trading days)
-  - [ ] Calculated indicators for all stocks
-  - [ ] Financial statements (last 4 quarters + 3 years)
-- [ ] Create seed data generation script
-  - [ ] Python script to generate realistic data
-  - [ ] Use faker-korean for Korean company names
-  - [ ] Realistic price movements (random walk)
-  - [ ] Consistent indicator calculations
-- [ ] Add seed data to database
-  - [ ] Run seed script on screener_db
-  - [ ] Run seed script on screener_test
-  - [ ] Verify data integrity
-- [ ] Update docker-compose.yml
-  - [ ] Add seed data volume mount
-  - [ ] Auto-run seed on first startup
-- [ ] Document seed data structure
-  - [ ] Add README in database/seeds/
-  - [ ] Document how to regenerate seed data
+- [x] Create seed data SQL script
+  - [x] 100 stocks from KOSPI (삼성전자, SK하이닉스, etc.)
+  - [x] 50 stocks from KOSDAQ (카카오, 네이버, etc.)
+  - [x] Historical daily_prices (last 252 trading days)
+  - [x] Calculated indicators for all stocks
+  - [x] Financial statements (last 4 quarters + 3 years)
+- [x] Create seed data generation script
+  - [x] Python script to generate realistic data
+  - [x] Use faker-korean for Korean company names
+  - [x] Realistic price movements (random walk)
+  - [x] Consistent indicator calculations
+- [x] Add seed data to database
+  - [x] Run seed script on screener_db
+  - [x] Run seed script on screener_test
+  - [x] Verify data integrity
+- [x] Update docker-compose.yml
+  - [x] Add seed data volume mount
+  - [x] Auto-run seed on first startup
+- [x] Document seed data structure
+  - [x] Add README in database/seeds/
+  - [x] Document how to regenerate seed data
 
 ## Acceptance Criteria
-- [ ] Database has 150 stocks (100 KOSPI + 50 KOSDAQ)
-- [ ] Each stock has price history (252 days)
-- [ ] Each stock has calculated indicators
-- [ ] Financial statements for major stocks
-- [ ] Stock listing endpoint returns data
-- [ ] Screening endpoint returns results
-- [ ] Frontend screener page shows results
-- [ ] Seed data script is idempotent (can run multiple times)
+- [x] Database has 150 stocks (100 KOSPI + 50 KOSDAQ)
+- [x] Each stock has price history (252 days)
+- [x] Each stock has calculated indicators
+- [x] Financial statements for major stocks
+- [x] Stock listing endpoint returns data
+- [x] Screening endpoint returns results
+- [x] Frontend screener page shows results
+- [x] Seed data script is idempotent (can run multiple times)
 
 ## Seed Data Structure
 ### stocks (150 rows)

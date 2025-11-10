@@ -106,10 +106,16 @@ These tickets have been fully implemented, tested, and reviewed:
 
 ---
 
-### 📋 Todo (Sprint 1 & 2) - 10 tickets
+### 📋 Todo (Sprint 1 & 2) - 12 tickets
 **Ready to start, prioritized**
 
 **Sprint 1 Remaining (7 tickets):**
+
+**Security (1):**
+- **SECURITY-001**: Fix SQL Injection Vulnerabilities in Screening API (Critical, 4h) ⚠️ **BLOCKING BE-004**
+
+**Bug Fixes (1):**
+- **BUGFIX-002**: Optimize Screening Query Performance (High, 3h) ⚠️ **BLOCKING BE-004**
 
 **Backend (2):**
 - BE-002: User Authentication API Implementation (Critical, 12h)
@@ -161,14 +167,27 @@ These tickets have been fully implemented, tested, and reviewed:
 
 ---
 
+### 🔍 Review (1 ticket)
+**Awaiting code review:**
+
+**Backend:**
+- **BE-004**: Stock Screening API Implementation (Critical, 16h actual) ✅ Ready for review
+  - ✅ API implementation complete (3 endpoints)
+  - ✅ 96 tests passing (82 unit + 14 integration)
+  - ✅ PostgreSQL test database configured
+  - ✅ All acceptance criteria met except performance tests
+  - ⚠️ Performance testing blocked by DB-003 (materialized view needed)
+  - 📝 PR #23 created
+
+---
+
 ### Backlog (Sprint 2+: Week 3+) - Core & Advanced Features
-**11 tickets for future sprints**
+**12 tickets for future sprints**
 
 #### Sprint 2 (Week 3-4) - Core Screening Features
-**7 tickets:**
+**6 tickets:**
 
-**Backend (2):**
-- BE-004: Stock Screening API Implementation (Critical, 16h) - Sprint 2
+**Backend (1):**
 - BE-005: API Rate Limiting and Throttling (High, 6h) - Sprint 2
 
 **Database (1):**
@@ -185,7 +204,11 @@ These tickets have been fully implemented, tested, and reviewed:
 **Infrastructure (1):**
 - INFRA-002: CI/CD Pipeline with GitHub Actions (High, 10h) - Sprint 2
 
-**Sprint 2 Total**: 106 hours (~13 person-days)
+**Technical Debt (2):**
+- TECH-DEBT-006: Replace MD5 with SHA-256 for Cache Keys (Medium, 2h)
+- TECH-DEBT-007: Document Rate Limiting for Screening (Medium, 3h)
+
+**Sprint 2 Total**: 111 hours (~14 person-days)
 
 **Sprint 2 Goal**:
 - ✓ Stock screening functionality fully operational
@@ -307,6 +330,38 @@ Each team member answers:
 
 ## Recent Updates
 
+**2025-11-10 (12:00)**:
+- 🔍 **BE-004 Code Review Completed** - Critical security issues found
+  - Created comprehensive code review document (docs/reviews/REVIEW_2025-11-10_be-004-screening-api.md)
+  - ❌ **NOT READY TO MERGE** - Security vulnerabilities must be fixed
+  - Created blocking tickets:
+    - SECURITY-001: Fix SQL Injection Vulnerabilities (Critical, 4h)
+    - BUGFIX-002: Optimize Double Query Performance (High, 3h)
+  - Created follow-up tickets:
+    - TECH-DEBT-006: Replace MD5 with SHA-256 (Medium, 2h)
+    - TECH-DEBT-007: Document Rate Limiting (Medium, 3h)
+  - 🎯 **Positive findings**:
+    - Excellent architecture and test coverage (96 tests)
+    - Strong async patterns and error handling
+    - Comprehensive API documentation
+  - 🔴 **Critical issues**:
+    - SQL injection in sort_by parameter (CWE-89)
+    - No parameterized queries for string filters
+    - Double query execution (2x performance hit)
+  - 🔄 **Next**: Fix SECURITY-001 and BUGFIX-002, then re-review
+
+**2025-11-10 (11:45)**:
+- ✅ **BE-004 Stock Screening API** - 98% complete
+  - Fixed PostgreSQL test database configuration (SQLite UUID compatibility issue)
+  - All 14 integration tests passing with PostgreSQL
+  - 96 total tests passing (82 unit + 14 integration)
+  - Test coverage: screening.py 100%, screening_service.py 95%, schemas 99%
+  - All acceptance criteria met except performance tests (blocked by DB-003)
+- 📝 Updated conftest.py to use PostgreSQL for tests
+- 📝 Created screener_test database
+- ⚠️ Performance testing pending (requires materialized view from DB-003)
+- ✅ PR #23 created and moved to review
+
 **2025-11-09 (17:55)**:
 - ✅ Runtime testing completed - All 12 tests passing
 - ✅ Moved INFRA-001, BE-001, DB-001 to done (runtime verified)
@@ -333,4 +388,4 @@ Each team member answers:
 
 ---
 
-Last Updated: 2025-11-09 (17:55)
+Last Updated: 2025-11-10 (11:45)

@@ -385,10 +385,12 @@ kubectl logs -f deployment/backend -n screener
 
 ## 📊 Monitoring
 
-- **Application Metrics**: Grafana dashboard at http://grafana.screener.kr
-- **API Health**: http://api.screener.kr/health
+- **Application Metrics**: Grafana dashboard at http://localhost:3000 (development)
+- **API Health**: http://localhost:8000/health (development)
 - **Database Performance**: TimescaleDB monitoring
 - **Error Tracking**: Sentry integration
+
+> **Note**: Production URLs will be configured during deployment phase.
 
 ## 🔐 Security
 
@@ -402,10 +404,21 @@ kubectl logs -f deployment/backend -n screener
 
 ## 📝 API Documentation
 
-Interactive API documentation available at:
-- **Swagger UI**: http://api.screener.kr/docs
-- **ReDoc**: http://api.screener.kr/redoc
-- **OpenAPI Spec**: `api/openapi.yaml`
+Comprehensive API documentation is available in multiple formats:
+
+**Documentation Portal** (https://docs.screener.kr):
+- **API Reference**: https://docs.screener.kr/docs/api/intro
+  - Python Backend API (auto-generated with Sphinx)
+  - TypeScript Frontend API (auto-generated with TypeDoc)
+  - Architecture and design patterns
+  - Code examples and tutorials
+
+**Interactive API Docs** (Backend Server):
+- **Swagger UI**: http://localhost:8000/docs (development)
+- **ReDoc**: http://localhost:8000/redoc (development)
+- **OpenAPI Spec**: http://localhost:8000/openapi.json
+
+> **Note**: Interactive API docs (Swagger/ReDoc) are served by the FastAPI backend. Production URLs will be configured during deployment.
 
 ## 🤝 Contributing
 

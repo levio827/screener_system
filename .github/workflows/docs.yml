@@ -101,7 +101,7 @@ jobs:
         run: |
           echo "## Documentation Deployment Successful! 🚀" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📚 Documentation is now available at: https://docs.screener.kr" >> $GITHUB_STEP_SUMMARY
+          echo "📚 Documentation is now available at: https://kcenon.github.io/screener_system" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Build Statistics" >> $GITHUB_STEP_SUMMARY
           echo "- Workflow: ${{ github.workflow }}" >> $GITHUB_STEP_SUMMARY

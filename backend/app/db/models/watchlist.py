@@ -44,7 +44,6 @@ class Watchlist(Base, TimestampMixin):
         "WatchlistStock",
         back_populates="watchlist",
         cascade="all, delete-orphan",
-        lazy="selectin",
     )
 
     # Constraints

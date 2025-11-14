@@ -21,6 +21,69 @@ router = APIRouter(prefix="/users", tags=["Users"])
 
 
 # ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+
+async def build_watchlist_response(
+    watchlist, watchlist_service: WatchlistService, load_stocks: bool = True
+) -> WatchlistResponse:
+    """
+    Build WatchlistResponse from Watchlist model
+
+    Args:
+        watchlist: Watchlist model instance
+        watchlist_service: WatchlistService instance for database access
+        load_stocks: Whether to load stock details
+
+    Returns:
+        WatchlistResponse with all stock data loaded
+    """
+    from app.db.models import WatchlistStock
+    from app.db.models.stock import Stock
+    from app.repositories.watchlist_repository import WatchlistRepository
+    from sqlalchemy import select
+
+    stock_responses = []
+    stock_count = 0
+
+    if load_stocks:
+        # Get stocks using repository
+        watchlist_repo = WatchlistRepository(watchlist_service.session)
+        watchlist_stocks = await watchlist_repo.get_watchlist_stocks(watchlist.id)
+        stock_count = len(watchlist_stocks)
+
+        # Load Stock data for each WatchlistStock
+        for ws in watchlist_stocks:
+            stock_query = select(Stock).where(Stock.code == ws.stock_code)
+            stock_result = await watchlist_service.session.execute(stock_query)
+            stock = stock_result.scalar_one_or_none()
+
+            stock_responses.append(
+                {
+                    "stock_code": ws.stock_code,
+                    "notes": ws.notes,
+                    "added_at": ws.added_at,
+                    "stock_name": stock.name if stock else None,
+                    "current_price": None,
+                    "change_percent": None,
+                    "volume": None,
+                }
+            )
+
+    return WatchlistResponse(
+        id=watchlist.id,
+        user_id=watchlist.user_id,
+        name=watchlist.name,
+        description=watchlist.description,
+        stock_count=stock_count,
+        created_at=watchlist.created_at,
+        updated_at=watchlist.updated_at,
+        stocks=stock_responses,
+    )
+
+
+# ============================================================================
 # WATCHLIST ENDPOINTS
 # ============================================================================
 
@@ -52,24 +115,34 @@ async def list_watchlists(
     Raises:
         401: Unauthorized
     """
+    from app.repositories.watchlist_repository import WatchlistRepository
+
     skip = (page - 1) * limit
     watchlists, total = await watchlist_service.get_user_watchlists(
         user_id=current_user.id, skip=skip, limit=limit, load_stocks=False
     )
 
     # Convert to summary format
-    watchlist_summaries = [
-        WatchlistSummary(
-            id=w.id,
-            name=w.name,
-            description=w.description,
-            stock_count=w.stock_count,
-            last_stock_added=None,  # TODO: Add this to query
-            created_at=w.created_at,
-            updated_at=w.updated_at,
+    # Query stock count for each watchlist separately to avoid relationship loading
+    watchlist_repo = WatchlistRepository(watchlist_service.session)
+    watchlist_summaries = []
+
+    for w in watchlists:
+        # Get stock count by querying watchlist_stocks
+        watchlist_stocks = await watchlist_repo.get_watchlist_stocks(w.id)
+        stock_count = len(watchlist_stocks)
+
+        watchlist_summaries.append(
+            WatchlistSummary(
+                id=w.id,
+                name=w.name,
+                description=w.description,
+                stock_count=stock_count,
+                last_stock_added=None,  # TODO: Add this to query
+                created_at=w.created_at,
+                updated_at=w.updated_at,
+            )
         )
-        for w in watchlists
-    ]
 
     return WatchlistListResponse(
         total=total,
@@ -111,15 +184,8 @@ async def create_watchlist(
             user_id=current_user.id, data=watchlist_data
         )
 
-        return WatchlistResponse(
-            id=watchlist.id,
-            user_id=watchlist.user_id,
-            name=watchlist.name,
-            description=watchlist.description,
-            stock_count=watchlist.stock_count,
-            created_at=watchlist.created_at,
-            updated_at=watchlist.updated_at,
-            stocks=[],  # Stocks are loaded separately
+        return await build_watchlist_response(
+            watchlist, watchlist_service, load_stocks=True
         )
 
     except ValueError as e:
@@ -156,7 +222,7 @@ async def get_watchlist(
         401: Unauthorized
     """
     watchlist = await watchlist_service.get_watchlist_by_id(
-        watchlist_id=watchlist_id, user_id=current_user.id, load_stocks=True
+        watchlist_id=watchlist_id, user_id=current_user.id, load_stocks=False
     )
 
     if not watchlist:
@@ -165,31 +231,7 @@ async def get_watchlist(
             detail="Watchlist not found or access denied",
         )
 
-    # TODO: Enrich stocks with current price data
-    stock_responses = []
-    for ws in watchlist.stocks:
-        stock_responses.append(
-            {
-                "stock_code": ws.stock_code,
-                "notes": ws.notes,
-                "added_at": ws.added_at,
-                "stock_name": ws.stock.name if ws.stock else None,
-                "current_price": None,  # TODO: Fetch from price service
-                "change_percent": None,
-                "volume": None,
-            }
-        )
-
-    return WatchlistResponse(
-        id=watchlist.id,
-        user_id=watchlist.user_id,
-        name=watchlist.name,
-        description=watchlist.description,
-        stock_count=watchlist.stock_count,
-        created_at=watchlist.created_at,
-        updated_at=watchlist.updated_at,
-        stocks=stock_responses,
-    )
+    return await build_watchlist_response(watchlist, watchlist_service, load_stocks=True)
 
 
 @router.put(
@@ -226,15 +268,8 @@ async def update_watchlist(
             watchlist_id=watchlist_id, user_id=current_user.id, data=watchlist_data
         )
 
-        return WatchlistResponse(
-            id=watchlist.id,
-            user_id=watchlist.user_id,
-            name=watchlist.name,
-            description=watchlist.description,
-            stock_count=watchlist.stock_count,
-            created_at=watchlist.created_at,
-            updated_at=watchlist.updated_at,
-            stocks=[],  # Return minimal response
+        return await build_watchlist_response(
+            watchlist, watchlist_service, load_stocks=True
         )
 
     except ValueError as e:

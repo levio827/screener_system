@@ -8,12 +8,13 @@
  * - Export functionality
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useScreening } from '@/hooks/useScreening'
 import { useFilterPresets } from '@/hooks/useFilterPresets'
 import { useFreemiumAccess } from '@/hooks/useFreemiumAccess'
 import FilterPanel from '@/components/screener/FilterPanel'
+import FilterPanelCollapsible from '@/components/screener/FilterPanelCollapsible'
 import ResultsTable from '@/components/screener/ResultsTable'
 import Pagination from '@/components/common/Pagination'
 import ExportButton from '@/components/screener/ExportButton'
@@ -39,10 +40,14 @@ export function ScreenerTab({ initialFilters }: ScreenerTabProps) {
     setPagination,
   } = useScreening()
 
-  // Apply initial filters if provided
-  // Note: This will be properly implemented when URL sync is added
-  // For now, initialFilters are accepted but not used
-  void initialFilters
+  // Apply initial filters if provided (Phase 2E)
+  useEffect(() => {
+    if (initialFilters) {
+      setFilters({ ...filters, ...initialFilters })
+    }
+    // Only run when initialFilters changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFilters])
 
   const { presets, savePreset, deletePreset } = useFilterPresets()
   const {
@@ -54,7 +59,6 @@ export function ScreenerTab({ initialFilters }: ScreenerTabProps) {
   } = useFreemiumAccess()
 
   const [showLimitModal, setShowLimitModal] = useState(false)
-  const [filterPanelCollapsed, setFilterPanelCollapsed] = useState(false)
 
   // Handle sort
   const handleSort = (field: ScreeningSortField) => {
@@ -125,48 +129,21 @@ export function ScreenerTab({ initialFilters }: ScreenerTabProps) {
         </div>
       )}
 
-      {/* Main layout with collapsible filter panel */}
+      {/* Main layout with collapsible filter panel (Phase 2C) */}
       <div className="flex gap-6">
-        {/* Filter Panel (Collapsible) */}
-        {!filterPanelCollapsed && (
-          <div className="w-80 flex-shrink-0">
-            <div className="sticky top-24 z-30">
-              <FilterPanel
-                filters={filters}
-                onFiltersChange={setFilters}
-                onClearFilters={handleClearFilters}
-                presets={presets}
-                onSavePreset={(name, description) => savePreset(name, filters, description)}
-                onDeletePreset={deletePreset}
-              />
-              <button
-                onClick={() => setFilterPanelCollapsed(true)}
-                className="mt-2 w-full py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
-              >
-                ← Collapse Filters
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Filter Panel (Collapsible with smooth transitions) */}
+        <FilterPanelCollapsible>
+          <FilterPanel
+            filters={filters}
+            onFiltersChange={setFilters}
+            onClearFilters={handleClearFilters}
+            presets={presets}
+            onSavePreset={(name, description) => savePreset(name, filters, description)}
+            onDeletePreset={deletePreset}
+          />
+        </FilterPanelCollapsible>
 
-        {/* Collapsed Filter Panel Toggle */}
-        {filterPanelCollapsed && (
-          <div className="w-12 flex-shrink-0">
-            <div className="sticky top-24 z-30">
-              <button
-                onClick={() => setFilterPanelCollapsed(false)}
-                className="w-12 h-32 flex items-center justify-center bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
-                title="Expand Filters"
-              >
-                <span className="transform -rotate-90 text-sm font-medium text-gray-600">
-                  Filters
-                </span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Results Column */}
+        {/* Results Column (Dynamic width based on filter panel state) */}
         <div className="flex-1 min-w-0 space-y-4">
           {/* Results count and export */}
           {!isLoading && data && (

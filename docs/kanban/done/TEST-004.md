@@ -2,11 +2,13 @@
 
 **Type**: TEST
 **Priority**: P0
-**Status**: IN_PROGRESS
+**Status**: DONE
 **Created**: 2025-11-16
 **Started**: 2025-11-17
-**Effort**: 2 hours
+**Completed**: 2025-11-17
+**Effort**: 2 hours (actual: ~2.5 hours including CI fixes)
 **Phase**: Phase 1 - Critical Tests
+**PR**: #135 (merged)
 
 ---
 

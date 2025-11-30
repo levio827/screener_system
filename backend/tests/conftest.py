@@ -6,7 +6,7 @@ from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -31,12 +31,7 @@ DEFAULT_TEST_DB_URL = os.getenv(
 TEST_DATABASE_URL = DEFAULT_TEST_DB_URL
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create event loop for async tests"""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+
 
 
 @pytest_asyncio.fixture
@@ -146,8 +141,11 @@ async def client(db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides[get_db] = override_get_db
 
-    # Create client
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    # Create client (httpx 0.28+ requires ASGITransport instead of app parameter)
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test"
+    ) as ac:
         yield ac
 
     # Clear overrides

